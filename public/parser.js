@@ -30,7 +30,7 @@ String.prototype.tokens = function() {
     ONELINECOMMENT: /\/\/.*/g,
     MULTIPLELINECOMMENT: /\/[*](.|\n)*?[*]\//g,
     COMPARISONOPERATOR: /[<>=!]=|[<>]|==/g,
-    TWOCHAROPERATORS: /(\+\+)/g,
+    TWOCHAROPERATORS: /(\+\+|\-\-)/g,
     ONECHAROPERATORS: /(->|[=()&|;:,{}[\]])/g,
     ADDOP: /[+-]/g,
     MULTOP: /[*\/]/g
@@ -199,11 +199,7 @@ var parse = function(input) {
        condition = comparation(condition);
      }
      match(";");
-     increment = term();
-     if (lookahead && lookahead.type === "TWOCHAROPERATOR" && increment.type === "ID") {
-       match("TWOCHAROPERATOR");
-       increment = 1;
-     }
+     increment = incremento();
      match(")");
      match("{");
      if (lookahead && lookahead.value != "}") {
@@ -211,14 +207,29 @@ var parse = function(input) {
      }
      match("}");
      result = {
+       type: "FOR",
        inicio: init,
        condicion: condition,
-       incremento: 1,
+       incremento: increment,
        codigo: code
      }
      return result;
    }
 
+   incremento = function() {
+     var operator, id, increment;
+     id = term();
+     if (lookahead && lookahead.type === "TWOCHAROPERATOR" && id.type === "ID") {
+       operator = lookahead.value;
+       match("TWOCHAROPERATOR");
+       if (operator === "++")
+        increment = 1;
+       else if (operator === "--") {
+         increment = -1;
+       }
+     }
+     return increment;
+   }
    constante = function() {
      match("CONST");
      result = term();

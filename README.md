@@ -10,12 +10,14 @@
 
 ### Gramática
 
-    Σ = { ADDOP, MULOP, '(', ')', ',', '=', NUM, IF, THEN, ELSE },
-    V = { expression, term, factor, comma , assignation, conditional, comparation}
+    Σ = { ADDOP, MULOP, '(', ')', ',', '}', '=', NUM, IF, THEN, ELSE, FOR, ID, BOOLEAN, COMPARISONOPERATOR, CONST,  TWOCHAROPERATOR },
+    V = { expression, term, factor, comma , assignation, conditional, comparation, bucle, funcion, constante}
     Productions:
-        coma → (expression|bucle)( ; (expression|bucle) )*
-        expression → assignation | comparation | conditional |funcion |  term ( ADDOP term)*
-        bucle → FOR (assignation; comparation; ID TWOCHAROPERATOR) '{' coma '}'
+        coma → (expression|bucle)( ';' (expression|bucle) )*
+        expression → assignation | comparation | conditional |funcion | constante |  term ( ADDOP term)*
+        constante → CONST assignation
+        bucle → FOR '('assignation; comparation; incremento ')' '{' coma '}'
+        incremento → ID TWOCHAROPERATOR
         funcion → ID = ->'(' (, ID)* ')' '{' coma '}'
         assignation → ID = expression
         conditional → IF expression THEN expression ELSE expression
