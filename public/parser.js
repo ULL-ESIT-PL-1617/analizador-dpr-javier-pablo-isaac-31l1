@@ -38,7 +38,8 @@ String.prototype.tokens = function() {
     p: "P",
     "if": "IF",
     "then": "THEN",
-    "else": "ELSE"
+    "else": "ELSE",
+    "const": "CONST"
   };
   BOOLEAN = {
     "true": "TRUE",
@@ -105,7 +106,7 @@ String.prototype.tokens = function() {
 };
 
 var parse = function(input) {
-    var tabla_hash = {};
+    var tabla_constantes = [];
   var condition, coma, expression, factor, lookahead, match, statement, statements, term, tokens, tree;
   tokens = input.tokens();
   lookahead = tokens.shift();
@@ -131,28 +132,56 @@ var parse = function(input) {
 
   }
 
-  expression = function(not_evaluate) {
+  expression = function() {
     let result, right, type;
+    let args = [];
     if (lookahead.type === "IF")
         return conditional();
-    result = term();
-    if (lookahead && lookahead.type === "=") {
-      result = asignation(result);
-    } else {
-    while(lookahead && lookahead.type === "ADDOP"){
-      type = lookahead.value;
-      match("ADDOP");
-      right = term();
-      result = {
-          type: type,
-          left: result,
-          right: right
+    if (lookahead && lookahead.type == "CONST") {
+      match("CONST");
+      result = term();
+      if (lookahead && lookahead.type === "=" && result.type === "ID") {
+        if (!tabla_constantes[result.value])
+          tabla_constantes.push(result.value);
+        result.constante = true;
+        result = asignation(result);
+      }
+    }
+    else {
+        result = term();
+      if (lookahead && lookahead.value === "(" && result.type === "ID") {
+        match("(");
+        args.push(factor());
+        while (lookahead.value === ",") {
+          match(",");
+          args.push(term());
+        }
+        match(")");
+        result = {
+           type: "ID",
+           value: result.value,
+           argumentos: args
         };
+      }
+      else if (lookahead && lookahead.type === "=" && result.type === "ID") {
+        result = asignation(result);
+    } else {
+        while(lookahead && lookahead.type === "ADDOP"){
+          type = lookahead.value;
+          match("ADDOP");
+          right = term();
+          result = {
+             type: type,
+             left: result,
+             right: right
+          };
+         }
+      }
     }
     if(lookahead && lookahead.type === "COMPARISON") {
       result = comparation(result);
     }
-  }
+
     return result;
   };
 
@@ -161,10 +190,8 @@ var parse = function(input) {
     let result;
     match("=");
     if (lookahead.value == "->") {
-      match("->")
+      match("->");
       result = funcion();
-      tabla_hash[id] = result;
-      result = NaN;
     }
      else {
        assignment = expression();
@@ -177,25 +204,35 @@ var parse = function(input) {
     return result;
   }
 
-  funcion = function(id, evaluate) {
-    let argumentos = [];
+  funcion = function(id) {
+    let args = [];
+    let code;
     let j = 0;
+    let statement;
     let funcionArray;
     let result;
     match("(");
-    argumentos.push(lookahead.value);
-    if (!evaluate) {
-      match("ID");
-    }
+    args.push(lookahead.value);
+    match("ID");
     while (lookahead && lookahead.value == ",") {
       match(",");
-      argumentos.push(lookahead.value);
+      args.push(lookahead.value);
       match("ID");
     }
     match(")");
-      expression(false, true)
-      argumentos.push(cadena);
-      return argumentos
+    match("{");
+    if (lookahead && lookahead.value != "}") {
+      codigo = coma();
+    }
+    match("}");
+
+    result = {
+        nombrefuncion: id,
+        argumentos: args,
+        code: codigo
+      }
+
+      return result
     }
 
 
@@ -255,8 +292,9 @@ var parse = function(input) {
     }
     return result;
   };
+
   factor = function() {
-    var result, left;
+    var result, id;
     result = null;
     if (lookahead.type === "NUM") {
       result = {
@@ -266,11 +304,20 @@ var parse = function(input) {
         match("NUM");
     }
       else if(lookahead.type === "ID") {
-            left = lookahead.value;
+        id = lookahead.value;
+        if (tabla_constantes.indexOf(id) > -1) {
             result = {
              type: "ID",
-             value: left
+             value: id,
+             constante: true
            };
+         } else {
+           result = {
+            type: "ID",
+            value: id,
+            constante: false
+          };
+          }
             match("ID");
     } else if (lookahead.type === "BOOLEAN") {
       result = {
@@ -280,7 +327,7 @@ var parse = function(input) {
       match("BOOLEAN");
     }else if (lookahead.type === "(") {
       match("(");
-      result = coma();
+      result = expression();
       match(")");
     }else {
       throw "Syntax Error. Expected number or identifier or '(' but found " + (lookahead ? lookahead.value : "end of input") + " near '" + input.substr(lookahead.from) + "'";
