@@ -30,6 +30,7 @@ String.prototype.tokens = function() {
     ONELINECOMMENT: /\/\/.*/g,
     MULTIPLELINECOMMENT: /\/[*](.|\n)*?[*]\//g,
     COMPARISONOPERATOR: /[<>=!]=|[<>]|==/g,
+    TWOCHAROPERATORS: /(\+\+)/g,
     ONECHAROPERATORS: /(->|[=()&|;:,{}[\]])/g,
     ADDOP: /[+-]/g,
     MULTOP: /[*\/]/g
@@ -39,7 +40,8 @@ String.prototype.tokens = function() {
     "if": "IF",
     "then": "THEN",
     "else": "ELSE",
-    "const": "CONST"
+    "const": "CONST",
+      "for": "FOR"
   };
   BOOLEAN = {
     "true": "TRUE",
@@ -92,6 +94,8 @@ String.prototype.tokens = function() {
       result.push(make("STRING", getTok().replace(/^["']|["']$/g, "")));
     } else if (m = tokens.COMPARISONOPERATOR.bexec(this)) {
       result.push(make("COMPARISON", getTok()));
+    } else if (m = tokens.TWOCHAROPERATORS.bexec(this)) {
+      result.push(make("TWOCHAROPERATOR", getTok()));
     } else if (m = tokens.ONECHAROPERATORS.bexec(this)) {
       result.push(make(m[0], getTok()));
     } else if (m = tokens.ADDOP.bexec(this)) {
@@ -123,10 +127,14 @@ var parse = function(input) {
 
   coma = function() {
       var array_result = [];
-      array_result.push(expression());
+      if (lookahead.type === "FOR")
+          array_result.push(bucle());
+      else array_result.push(expression());
       while (lookahead && lookahead.type == ";") {
         match(";");
-        array_result.push(expression());
+        if (lookahead.type === "FOR")
+            array_result.push(bucle());
+        else array_result.push(expression());
       }
       return array_result;
 
@@ -138,17 +146,9 @@ var parse = function(input) {
     if (lookahead.type === "IF")
         return conditional();
     if (lookahead && lookahead.type == "CONST") {
-      match("CONST");
-      result = term();
-      if (lookahead && lookahead.type === "=" && result.type === "ID") {
-        if (!tabla_constantes[result.value])
-          tabla_constantes.push(result.value);
-        result.constante = true;
-        result = asignation(result);
-      }
+        return constante();
     }
-    else {
-        result = term();
+      result = term();
       if (lookahead && lookahead.value === "(" && result.type === "ID") {
         match("(");
         args.push(factor());
@@ -177,13 +177,60 @@ var parse = function(input) {
           };
          }
       }
-    }
+
     if(lookahead && lookahead.type === "COMPARISON") {
       result = comparation(result);
     }
 
     return result;
   };
+
+   bucle = function() {
+     let init, condition, result, increment, code;
+     match("FOR");
+     match("(");
+     init = term();
+     if (lookahead && lookahead.type === "=" && init.type === "ID") {
+       init = asignation(init);
+     }
+     match(";");
+     condition = term();
+     if (lookahead && lookahead.type === "COMPARISON" && condition.type === "ID") {
+       condition = comparation(condition);
+     }
+     match(";");
+     increment = term();
+     if (lookahead && lookahead.type === "TWOCHAROPERATOR" && increment.type === "ID") {
+       match("TWOCHAROPERATOR");
+       increment = 1;
+     }
+     match(")");
+     match("{");
+     if (lookahead && lookahead.value != "}") {
+       code = coma();
+     }
+     match("}");
+     result = {
+       inicio: init,
+       condicion: condition,
+       incremento: 1,
+       codigo: code
+     }
+     return result;
+   }
+
+   constante = function() {
+     match("CONST");
+     result = term();
+     if (lookahead && lookahead.type === "=" && result.type === "ID") {
+       if (!tabla_constantes[result.value])
+         tabla_constantes.push(result.value);
+       result.constante = true;
+       result = asignation(result);
+     }
+     return result;
+   }
+
 
   asignation = function(id) {
     var assignment;

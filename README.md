@@ -4,6 +4,22 @@
 * [Descripción de la Práctica: Analizador Descendente Predictivo Recursivo](http://crguezl.github.io/pl-html/node26.html)
 * [Analizadores Descendentes Recursivos](https://casianorodriguezleon.gitbooks.io/ull-esit-1617/content/apuntes/parsing/recursivodescendente/)
 
+
+### Gramática
+
+    Σ = { ADDOP, MULOP, '(', ')', ',', '=', NUM, IF, THEN, ELSE },
+    V = { expression, term, factor, comma , assignation, conditional, comparation}
+    Productions:
+        coma → (expression|bucle)( ; (expression|bucle) )*
+        expression → assignation | comparation | conditional |funcion |  term ( ADDOP term)*
+        bucle → FOR (assignation; comparation; ID TWOCHAROPERATOR) '{' coma '}'
+        funcion → ID = ->'(' (, ID)* ')' '{' coma '}'
+        assignation → ID = expression
+        conditional → IF expression THEN expression ELSE expression
+        comparation → expression COMPARISONOPERATOR expression
+        term → factor (MULOP factor)*
+        factor → '(' coma ')' | NUM | ID | BOOLEAN
+
 ## Definición de la Práctica
 
 ### Forma de trabajo
